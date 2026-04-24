@@ -7,6 +7,7 @@ import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { Login } from './components/Login';
 import { WorkLogBoard } from './components/WorkLogBoard';
 import { CreateWorkLog } from './components/CreateWorkLog';
+import { MonthlyReport } from './components/MonthlyReport';
 import { MonthlyReportView } from './components/MonthlyReportView';
 import { TeamMonthlyReport } from './components/TeamMonthlyReport';
 import { MonthlyReportDetail } from './components/MonthlyReportDetail';
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
       {
         path: "create",
         Component: CreateWorkLog,
+      },
+      {
+        path: "monthly-report",
+        Component: MonthlyReport,
       },
       {
         path: "monthly-report/view",

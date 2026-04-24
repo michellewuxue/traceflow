@@ -179,7 +179,7 @@ export function TeamMonthlyReport() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafafb]">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-12 h-12 border-4 border-[#1ABC9C]/20 border-t-[#1ABC9C] rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-sm text-zinc-500">加载中...</p>
         </div>
       </div>
@@ -310,7 +310,7 @@ export function TeamMonthlyReport() {
             <div 
               key={idx} 
               className={`w-[244px] flex-shrink-0 rounded-2xl border shadow-sm flex flex-col h-[720px]
-                ${member.isCurrent ? 'bg-white border-2 border-emerald-400 shadow-md' : 'bg-[#f3f4f6]/20 border-[#dee1e6]/40'}
+                ${member.isCurrent ? 'bg-white border-2 border-[#1ABC9C] shadow-md' : 'bg-[#f3f4f6]/20 border-[#dee1e6]/40'}
               `}
             >
               {/* Column Header */}
@@ -323,7 +323,7 @@ export function TeamMonthlyReport() {
                   <p className="text-[12px] text-[#565d6d] leading-tight">{member.role}</p>
                 </div>
                 {member.isCurrent && (
-                  <div className="ml-auto bg-emerald-400 text-white text-[10px] px-2 py-1 rounded-full font-medium">
+                  <div className="ml-auto bg-[#1ABC9C] text-white text-[10px] px-2 py-1 rounded-full font-medium">
                     我
                   </div>
                 )}

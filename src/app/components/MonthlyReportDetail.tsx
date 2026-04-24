@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileText, Calendar, Download, Share2, ArrowLeft, List, Target, CheckCircle2, Clock, Paperclip, User, ExternalLink } from 'lucide-react';
-import { useNavigate, useOutletContext } from 'react-router';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 export function MonthlyReportDetail() {
@@ -8,9 +8,14 @@ export function MonthlyReportDetail() {
   const { session } = useOutletContext<any>();
   const currentUser = session?.user;
   const userName = currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || '用户';
-  const currentDate = new Date();
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth() + 1;
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const startDateParam = searchParams.get('startDate');
+  const endDateParam = searchParams.get('endDate');
+
+  const selectedDate = startDateParam ? new Date(startDateParam) : new Date();
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth() + 1;
 
   const exportReport = () => {
     toast.promise(
@@ -240,7 +245,7 @@ export function MonthlyReportDetail() {
           <div className="flex flex-wrap items-center gap-y-3 gap-x-6 text-sm text-[#565d6d]">
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              统计周期: {year}-{month.toString().padStart(2, '0')}-01 至 {year}-{month.toString().padStart(2, '0')}-{new Date(year, month, 0).getDate()}
+              统计周期: {startDateParam || `${year}-${month.toString().padStart(2, '0')}-01`} 至 {endDateParam || `${year}-${month.toString().padStart(2, '0')}-${new Date(year, month, 0).getDate()}`}
             </div>
             <div className="flex items-center gap-1.5">
               <User className="w-4 h-4" />
@@ -248,7 +253,7 @@ export function MonthlyReportDetail() {
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="w-4 h-4" />
-              生成时间: {currentDate.toLocaleString('zh-CN')}
+              生成时间: {new Date().toLocaleString('zh-CN')}
             </div>
             <div className="bg-[#f3f4f6] px-3 py-0.5 rounded-md font-medium text-[#171a1f]">
               包含日志: 142 篇

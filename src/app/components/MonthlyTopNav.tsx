@@ -14,7 +14,7 @@ export function MonthlyTopNav({ userName, userAvatar }: MonthlyTopNavProps) {
     <header className="bg-white shadow-sm border-b border-zinc-200">
       <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#1ABC9C] rounded-lg flex items-center justify-center">
             <Activity className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold text-zinc-900">Work Trace</h1>
@@ -23,16 +23,16 @@ export function MonthlyTopNav({ userName, userAvatar }: MonthlyTopNavProps) {
         <nav className="flex items-center gap-8">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-zinc-600 hover:text-emerald-600 transition-colors"
+            className="flex items-center gap-2 text-zinc-600 hover:text-[#1ABC9C] transition-colors"
           >
             <LayoutDashboard className="w-4 h-4" />
             <span className="text-sm font-medium">工作日志</span>
           </button>
-          <button className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg">
+          <button className="flex items-center gap-2 text-[#1ABC9C] bg-[#1ABC9C]/10 px-3 py-2 rounded-lg">
             <FileText className="w-4 h-4" />
             <span className="text-sm font-medium">工作月报</span>
           </button>
-          <button className="flex items-center gap-2 text-zinc-600 hover:text-emerald-600 transition-colors">
+          <button className="flex items-center gap-2 text-zinc-600 hover:text-[#1ABC9C] transition-colors">
             <Settings className="w-4 h-4" />
             <span className="text-sm font-medium">项目配置</span>
           </button>

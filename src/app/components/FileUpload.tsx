@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, X, FileCode2, FileText, Image as ImageIcon } from 'lucide-react';
+import { Upload, Link as LinkIcon, X, FileCode2, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { supabase } from '../App';
 
 interface UploadedFile {
   id: string;
@@ -83,20 +84,59 @@ const formatFileSize = (bytes: number): string => {
 };
 
 export function FileUpload({ files, onFilesChange }: FileUploadProps) {
+  // 每个组件实例都有自己独立的状态
   const [linkUrl, setLinkUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    const newFiles: UploadedFile[] = selectedFiles.map(file => ({
-      id: `file-${Date.now()}-${Math.random()}`,
-      name: file.name,
-      size: file.size,
-      type: getFileType(file.name)
-    }));
-    onFilesChange([...files, ...newFiles]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (selectedFiles.length === 0) return;
+
+    setUploading(true);
+    try {
+      const newFiles: UploadedFile[] = [];
+      
+      for (const file of selectedFiles) {
+        // 生成安全的文件名，避免中文和特殊字符
+        const timestamp = Date.now();
+        const fileExtension = file.name.split('.').pop();
+        const safeFileName = `file-${timestamp}.${fileExtension}`;
+        
+        // 上传文件到 Supabase Storage
+        const { data, error } = await supabase
+          .storage
+          .from('deliverables')
+          .upload(safeFileName, file);
+        
+        if (error) {
+          console.error('文件上传失败:', error);
+          continue;
+        }
+        
+        // 获取文件 URL
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('deliverables')
+          .getPublicUrl(safeFileName);
+        
+        newFiles.push({
+          id: `file-${timestamp}-${Math.random()}`,
+          name: file.name,
+          size: file.size,
+          type: getFileType(file.name),
+          url: publicUrl
+        });
+      }
+      
+      onFilesChange([...files, ...newFiles]);
+    } catch (error) {
+      console.error('文件上传失败:', error);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -129,7 +169,7 @@ export function FileUpload({ files, onFilesChange }: FileUploadProps) {
             onChange={(e) => setLinkUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddLink()}
             placeholder="输入链接地址..."
-            className="w-full h-[36px] pl-10 pr-3 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full h-[36px] pl-10 pr-3 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1ABC9C]"
           />
           <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
         </div>
@@ -143,10 +183,20 @@ export function FileUpload({ files, onFilesChange }: FileUploadProps) {
         />
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="h-[36px] px-4 border-2 border-dashed border-emerald-400 text-emerald-600 rounded-lg text-sm font-medium hover:bg-emerald-50 transition-colors flex items-center gap-2"
+          disabled={uploading}
+          className="h-[36px] px-4 border-2 border-dashed border-[#1ABC9C]/40 text-[#1ABC9C] rounded-lg text-sm font-medium hover:bg-[#1ABC9C]/10 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Upload className="w-4 h-4" />
-          上传文件
+          {uploading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              上传中...
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4" />
+              上传文件
+            </>
+          )}
         </button>
       </div>
 

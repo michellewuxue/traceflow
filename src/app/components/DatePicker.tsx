@@ -154,8 +154,8 @@ export function DatePicker({ value, onChange, onClose }: DatePickerProps) {
             className={`
               aspect-square flex items-center justify-center text-sm rounded transition-colors
               ${!day.isCurrentMonth ? 'text-zinc-300' : 'text-zinc-900'}
-              ${day.isToday ? 'border-2 border-emerald-500' : ''}
-              ${day.isSelected ? 'bg-emerald-500 text-white font-semibold' : ''}
+              ${day.isToday ? 'border-2 border-[#1ABC9C]' : ''}
+              ${day.isSelected ? 'bg-[#1ABC9C] text-white font-semibold' : ''}
               ${!day.isSelected && day.isCurrentMonth && !day.isFuture ? 'hover:bg-zinc-100' : ''}
               ${day.isFuture ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}
             `}
@@ -175,7 +175,7 @@ export function DatePicker({ value, onChange, onClose }: DatePickerProps) {
         </button>
         <button
           onClick={handleToday}
-          className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+          className="text-sm text-[#1ABC9C] hover:text-[#16a085] font-medium transition-colors"
         >
           今天
         </button>

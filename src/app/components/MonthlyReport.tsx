@@ -13,7 +13,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate, useOutletContext } from 'react-router';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router';
 import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { MonthlyTopNav } from './MonthlyTopNav';
 
@@ -45,11 +45,33 @@ export function MonthlyReport() {
   const navigate = useNavigate();
   const { session } = useOutletContext<any>();
   const currentUser = session?.user;
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const startDate = searchParams.get('startDate');
+    if (startDate) {
+      const month = parseInt(startDate.split('-')[1]) - 1;
+      return isNaN(month) ? new Date().getMonth() : month;
+    }
+    return new Date().getMonth();
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const startDate = searchParams.get('startDate');
+    if (startDate) {
+      const year = parseInt(startDate.split('-')[0]);
+      return isNaN(year) ? new Date().getFullYear() : year;
+    }
+    return new Date().getFullYear();
+  });
   const [stats, setStats] = useState<MonthlyStats | null>(null);
+
+  const updateURLParams = (year: number, month: number) => {
+    const startDate = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endDate = `${year}-${(month + 1).toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+    setSearchParams({ startDate, endDate });
+  };
 
   // 获取月报统计
   const fetchMonthlyStats = async () => {
@@ -127,21 +149,28 @@ export function MonthlyReport() {
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
+    let newYear = selectedYear;
+    let newMonth = selectedMonth;
+
     if (direction === 'prev') {
       if (selectedMonth === 0) {
-        setSelectedMonth(11);
-        setSelectedYear(selectedYear - 1);
+        newMonth = 11;
+        newYear = selectedYear - 1;
       } else {
-        setSelectedMonth(selectedMonth - 1);
+        newMonth = selectedMonth - 1;
       }
     } else {
       if (selectedMonth === 11) {
-        setSelectedMonth(0);
-        setSelectedYear(selectedYear + 1);
+        newMonth = 0;
+        newYear = selectedYear + 1;
       } else {
-        setSelectedMonth(selectedMonth + 1);
+        newMonth = selectedMonth + 1;
       }
     }
+
+    setSelectedMonth(newMonth);
+    setSelectedYear(newYear);
+    updateURLParams(newYear, newMonth);
   };
 
   useEffect(() => {
@@ -176,18 +205,21 @@ export function MonthlyReport() {
       <MonthlyTopNav userName={currentUserName} userAvatar={currentUserAvatar} />
 
       <div className="max-w-7xl mx-auto px-8 py-8">
-        {/* 页面标题和月份选择 */}
+        {/* 页面标题和操作区 */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-zinc-900 mb-2 flex items-center gap-3">
-                <FileText className="w-8 h-8 text-emerald-500" />
-                个人工作月报
-              </h1>
-              <p className="text-zinc-600">回顾和总结您的月度工作成果</p>
+              <div className="flex items-center gap-3 mb-1.5">
+                <FileText className="w-6 h-6 text-[#1ABC9C]" />
+                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">个人工作月报</h1>
+                <span className="px-2 py-0.5 bg-[#1ABC9C]/10 text-[#1ABC9C] rounded-full text-xs font-semibold border border-[#1ABC9C]/20">
+                  月度总结
+                </span>
+              </div>
+              <p className="text-sm text-zinc-500">回顾和总结您的月度工作成果</p>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={shareReport}
                 className="flex items-center gap-2 px-4 py-2 border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors"
@@ -197,7 +229,7 @@ export function MonthlyReport() {
               </button>
               <button
                 onClick={exportReport}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                className="flex items-center gap-2 bg-[#1ABC9C] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-[#16a085] shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
               >
                 <Download className="w-4 h-4" />
                 导出PDF
@@ -217,8 +249,12 @@ export function MonthlyReport() {
             <div className="flex items-center gap-4">
               <select
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value);
+                  setSelectedYear(newYear);
+                  updateURLParams(newYear, selectedMonth);
+                }}
+                className="px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1ABC9C] focus:border-transparent"
               >
                 {Array.from({ length: 5 }, (_, i) => 2026 - i).map(year => (
                   <option key={year} value={year}>{year}年</option>
@@ -227,8 +263,12 @@ export function MonthlyReport() {
 
               <select
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                onChange={(e) => {
+                  const newMonth = parseInt(e.target.value);
+                  setSelectedMonth(newMonth);
+                  updateURLParams(selectedYear, newMonth);
+                }}
+                className="px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1ABC9C] focus:border-transparent"
               >
                 {Array.from({ length: 12 }, (_, i) => (
                   <option key={i} value={i}>{getMonthName(i)}</option>
@@ -251,7 +291,7 @@ export function MonthlyReport() {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-zinc-600">总日志数</h3>
-                <FileText className="w-5 h-5 text-emerald-500" />
+                <FileText className="w-5 h-5 text-[#1ABC9C]" />
               </div>
               <div className="text-3xl font-bold text-zinc-900 mb-1">{stats.totalLogs}</div>
               <p className="text-sm text-zinc-500">本月记录的工作日志</p>
@@ -292,7 +332,7 @@ export function MonthlyReport() {
             <div className="lg:col-span-1">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200 mb-6">
                 <h3 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-emerald-500" />
+                  <Tag className="w-5 h-5 text-[#1ABC9C]" />
                   工作类别分布
                 </h3>
 
@@ -319,7 +359,7 @@ export function MonthlyReport() {
               {/* 活动时间线 */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
                 <h3 className="text-lg font-semibold text-zinc-900 mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-emerald-500" />
+                  <Clock className="w-5 h-5 text-[#1ABC9C]" />
                   每日活动统计
                 </h3>
 
@@ -332,7 +372,7 @@ export function MonthlyReport() {
                         </div>
                         <div className="flex-1 bg-zinc-100 rounded-full h-2">
                           <div
-                            className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-[#1ABC9C] h-2 rounded-full transition-all duration-300"
                             style={{
                               width: `${Math.max((day.count / Math.max(...stats.dailyActivity.map(d => d.count))) * 100, 10)}%`
                             }}
@@ -365,7 +405,7 @@ export function MonthlyReport() {
                         <div key={log.id} className="border border-zinc-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2" />
+                              <div className="w-2 h-2 bg-[#1ABC9C] rounded-full mt-2" />
                               <div>
                                 <div className="text-sm text-zinc-500 mb-1">
                                   {new Date(log.dateTime).toLocaleDateString('zh-CN', {
@@ -379,7 +419,7 @@ export function MonthlyReport() {
                                   {log.tags.map((tag, tagIndex) => (
                                     <span
                                       key={tagIndex}
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium bg-[#1ABC9C]/10 text-[#1ABC9C] rounded-md"
                                     >
                                       {tag}
                                     </span>
@@ -395,7 +435,7 @@ export function MonthlyReport() {
 
                           {log.deliverables && log.deliverables.length > 0 && (
                             <div className="flex items-center gap-2 text-sm">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              <CheckCircle2 className="w-4 h-4 text-[#1ABC9C]" />
                               <span className="text-zinc-600">交付物：</span>
                               {log.deliverables.map((deliverable, delIndex) => (
                                 <span
@@ -417,7 +457,7 @@ export function MonthlyReport() {
                       <p className="text-zinc-500 mb-6">本月还没有工作日志记录</p>
                       <button
                         onClick={() => navigate('/create')}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#1ABC9C] text-white rounded-lg hover:bg-[#16a085] transition-colors"
                       >
                         <FileText className="w-4 h-4" />
                         开始记录工作

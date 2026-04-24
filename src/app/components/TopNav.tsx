@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, LayoutDashboard, FileText, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
 import { supabase } from '../App';
 
@@ -38,67 +38,55 @@ export function TopNav({ userName, userAvatar }: TopNavProps) {
   };
 
   return (
-    <nav className="h-14 shrink-0 bg-white border-b border-zinc-200 px-6 flex items-center justify-between z-20">
-      <div
-        className="flex items-center gap-2 text-emerald-500 font-bold text-xl tracking-tight cursor-pointer"
-        onClick={() => navigate('/')}
-      >
-        <Activity className="w-6 h-6" /> TraceFlow
-      </div>
-
-      <div className="hidden md:flex items-center gap-8">
-        <button
-          onClick={() => navigate('/')}
-          className={`flex items-center gap-1.5 text-sm font-medium py-4 transition-colors ${
-            isActive('/')
-              ? 'text-emerald-500 border-b-2 border-emerald-500'
-              : 'text-zinc-500 hover:text-zinc-900'
-          }`}
-        >
-          <LayoutDashboard className="w-4 h-4" /> 工作日志
-        </button>
-        <button
-          onClick={() => navigate('/team-monthly-report')}
-          className={`flex items-center gap-1.5 text-sm font-medium py-4 transition-colors ${
-            isActive('/team-monthly-report')
-              ? 'text-emerald-500 border-b-2 border-emerald-500'
-              : 'text-zinc-500 hover:text-zinc-900'
-          }`}
-        >
-          <FileText className="w-4 h-4" /> 月报看板
-        </button>
-        <button
-          onClick={() => {}}
-          className="flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors py-4"
-        >
-          <FileText className="w-4 h-4" /> 项目配置
-        </button>
-      </div>
-
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-[#dee1e6] flex items-center justify-between px-6 lg:px-16 sticky top-0 bg-white z-50 shadow-sm">
+      <div className="flex items-center gap-8">
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="w-8 h-8 bg-[#1ABC9C] rounded-md flex items-center justify-center">
+            <span className="text-white font-bold">TF</span>
+          </div>
+          <span className="text-xl font-bold text-[#1ABC9C]">TraceFlow</span>
+        </div>
+        <nav className="hidden md:flex items-center gap-8">
+          <button 
+            onClick={() => navigate('/')}
+            className={`flex items-center gap-2 text-[#1ABC9C] font-medium`}
+          >
+            <span>工作日志</span>
+          </button>
+          <button 
+            onClick={() => navigate('/team-monthly-report')}
+            className={`flex items-center gap-2 text-[#565d6d] font-medium hover:text-[#1ABC9C] transition-colors`}
+          >
+            <span>工作月报</span>
+          </button>
+          <button 
+            onClick={() => {}}
+            className="flex items-center gap-2 text-[#565d6d] font-medium hover:text-[#1ABC9C] transition-colors"
+          >
+            <span>项目配置</span>
+          </button>
+        </nav>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="relative">
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-100">
             {currentUserAvatar && (
-              <img
-                src={currentUserAvatar}
-                className="w-8 h-8 rounded-full object-cover border border-zinc-200 bg-white"
-                alt="Profile"
+              <img 
+                src={currentUserAvatar} 
+                alt="user" 
+                className="w-full h-full object-cover"
               />
             )}
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
           </div>
-          <span className="text-sm font-medium text-zinc-700 hidden sm:block">
-            {currentUserName}
-          </span>
+          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#2ECC71] border-2 border-white rounded-full"></div>
         </div>
-        <button
+        <button 
           onClick={handleLogout}
-          className="flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-red-500 transition-colors ml-2"
+          className="text-sm text-[#333333] hover:text-[#1ABC9C]"
         >
-          <LogOut className="w-4 h-4" />
           退出
         </button>
       </div>
-    </nav>
+    </header>
   );
 }

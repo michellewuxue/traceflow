@@ -101,7 +101,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           type="button"
           onMouseDown={handleBold}
           className={`p-1.5 rounded transition-colors ${
-            activeFormats.bold ? 'bg-emerald-100' : 'hover:bg-zinc-100'
+            activeFormats.bold ? 'bg-[#1ABC9C]/10' : 'hover:bg-zinc-100'
           }`}
           title="粗体"
         >
@@ -111,7 +111,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           type="button"
           onMouseDown={handleItalic}
           className={`p-1.5 rounded transition-colors ${
-            activeFormats.italic ? 'bg-emerald-100' : 'hover:bg-zinc-100'
+            activeFormats.italic ? 'bg-[#1ABC9C]/10' : 'hover:bg-zinc-100'
           }`}
           title="斜体"
         >
@@ -121,7 +121,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           type="button"
           onMouseDown={handleUnderline}
           className={`p-1.5 rounded transition-colors ${
-            activeFormats.underline ? 'bg-emerald-100' : 'hover:bg-zinc-100'
+            activeFormats.underline ? 'bg-[#1ABC9C]/10' : 'hover:bg-zinc-100'
           }`}
           title="下划线"
         >
@@ -132,7 +132,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           type="button"
           onMouseDown={handleUnorderedList}
           className={`p-1.5 rounded transition-colors ${
-            activeFormats.unorderedList ? 'bg-emerald-100' : 'hover:bg-zinc-100'
+            activeFormats.unorderedList ? 'bg-[#1ABC9C]/10' : 'hover:bg-zinc-100'
           }`}
           title="无序列表"
         >
@@ -142,7 +142,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
           type="button"
           onMouseDown={handleOrderedList}
           className={`p-1.5 rounded transition-colors ${
-            activeFormats.orderedList ? 'bg-emerald-100' : 'hover:bg-zinc-100'
+            activeFormats.orderedList ? 'bg-[#1ABC9C]/10' : 'hover:bg-zinc-100'
           }`}
           title="有序列表"
         >

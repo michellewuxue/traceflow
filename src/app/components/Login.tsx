@@ -95,7 +95,7 @@ export function Login() {
         
         <div className="relative z-10 flex flex-col justify-between p-12 w-full h-full">
           <div className="flex items-center gap-2 text-white">
-            <div className="w-8 h-8 rounded-md bg-emerald-500 text-white flex items-center justify-center font-bold text-xl">
+            <div className="w-8 h-8 rounded-md bg-[#1ABC9C] text-white flex items-center justify-center font-bold text-xl">
               F
             </div>
             <span className="text-xl font-semibold tracking-wide">TraceFlow</span>
@@ -220,7 +220,7 @@ export function Login() {
 
             <button
               type="submit"
-              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
+              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#1ABC9C] hover:bg-[#16a085] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1ABC9C] transition-colors"
             >
               {isLoginMode ? '登录' : '注册并登录'}
             </button>

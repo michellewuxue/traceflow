@@ -1,25 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Activity,
-  LayoutDashboard,
-  FileText,
-  Settings,
-  LogOut,
-  Edit2,
   Clock,
+  CircleCheck,
+  FileOutput,
   Tag,
-  CheckCircle2,
-  FileDown,
-  AlertCircle,
-  X,
-  Download,
-  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, useOutletContext } from 'react-router';
 import { supabase } from '../App';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
 import { TopNav } from './TopNav';
+import { DateRangeModal } from './DateRangeModal';
+
+
 
 interface Deliverable {
   type: 'CODE' | 'DOC' | 'DESIGN';
@@ -27,13 +19,30 @@ interface Deliverable {
   url?: string;
 }
 
+interface WorkTag {
+  name: string;
+  color: string;
+}
+
+interface WorkItem {
+  id: string;
+  category: string;
+  description: string;
+  deliverables: Deliverable[];
+  color: string;
+}
+
 interface Log {
   id: string;
   userId: string;
   dateTime: string;
-  tags: string[];
   content: string;
+  tags: WorkTag[];
   deliverables: Deliverable[];
+  workItems?: WorkItem[];
+  notes?: string;
+  createdAt?: string;
+  updated_at?: string;
 }
 
 interface User {
@@ -45,57 +54,129 @@ interface User {
   updateCount: number;
 }
 
-const getDeliverableStyle = (type: string) => {
-  switch (type) {
-    case 'CODE': return 'bg-emerald-50 text-emerald-600';
-    case 'DOC': return 'bg-blue-50 text-blue-600';
-    case 'DESIGN': return 'bg-purple-50 text-purple-600';
-    default: return 'bg-gray-100 text-gray-600';
-  }
-};
+
 
 export function WorkLogBoard() {
   const navigate = useNavigate();
-  const { session } = useOutletContext<any>();
-  const currentUser = session?.user;
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const [users, setUsers] = useState<User[]>([]);
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentUserColRef = useRef<HTMLDivElement>(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [targetUser, setTargetUser] = useState<User | null>(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [modalError, setModalError] = useState('');
+  const handleGenerateMonthlyReport = (startDate: string, endDate: string) => {
+    navigate(`/monthly-report-detail?startDate=${startDate}&endDate=${endDate}`);
+  };
 
-  const [previewFile, setPreviewFile] = useState<Deliverable | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+const getFileSizeFromURL = async (url: string) => {
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    const len = res.headers.get('content-length');
+    if (!len) return '未知大小';
 
-  const teamMembersData = [
-    { id: '1', name: '刘硕', role: '产品经理', email: 'liushuo@itcast.cn' },
-    { id: '2', name: '王静', role: '设计师', email: 'wangjing@itcast.cn' },
-    { id: '3', name: '李方华', role: '设计师', email: 'lifanghua@itcast.cn' },
-    { id: '4', name: '娄江华', role: '前端开发工程师', email: 'loujianghua@itcast.cn' },
-    { id: '5', name: '牟浩天', role: '后端开发工程师', email: 'muhaotian@itcast.cn' },
-    { id: '6', name: '吴雪', role: '项目部主管', email: 'wuxue1@itcast.cn' }
-  ];
+    const size = parseInt(len);
+    if (size < 1024) return size + ' B';
+    else if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+    else return (size / 1024 / 1024).toFixed(1) + ' MB';
+  } catch (e) {
+    return '未知大小';
+  }
+};
 
-  const fetchLogs = async () => {
+
+  // 获取所有日志
+  const fetchAllLogs = async () => {
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-e9f91fb9/logs`, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.logs || [];
+      const { data, error } = await supabase
+        .from('work_logs')
+        .select(`
+          *,
+          work_items (
+            id, 
+            category, 
+            description, 
+            sort_order,
+            deliverables(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('获取日志失败:', error);
+        return [];
       }
-      return [];
+
+      console.log('获取到的日志数据:', data); // 添加调试信息
+
+      return data.map(log => {
+        // 提取工作事项标签（按照 sort_order 排序）
+        const sortedWorkItems = log.work_items?.sort((a: any, b: any) => a.sort_order - b.sort_order) || [];
+        
+        // 为不同标签分配颜色
+        const getTagColor = (tagName: string) => {
+          const colorMap: { [key: string]: string } = {
+            '功能开发': '#3b82f6',
+            'UI重构': '#10b981',
+            'Bug修复': '#ef4444',
+            '会议': '#f59e0b',
+            '视觉设计': '#8b5cf6',
+            '规范制定': '#06b6d4'
+          };
+          return colorMap[tagName] || '#6b7280'; // 默认颜色
+        };
+        
+        // 处理工作事项数据，包括标签、描述和交付物
+        const workItemsWithData = sortedWorkItems.map((item: any) => {
+          // 提取交付结果（每个工作事项自己的交付物）
+          const itemDeliverables = item.deliverables?.map((deliverable: any) => ({
+            type: deliverable.type.toUpperCase(),
+            name: deliverable.name,
+            url: deliverable.url
+          })) || [];
+          
+          // 提取工作描述
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = item.description;
+          const textContent = tempDiv.textContent || tempDiv.innerText || '';
+          
+          return {
+            id: item.id,
+            category: item.category,
+            description: textContent.trim(),
+            deliverables: itemDeliverables,
+            color: getTagColor(item.category)
+          };
+        });
+        
+        // 从工作事项中提取标签
+        const workItemTags = workItemsWithData.map(item => ({
+          name: item.category,
+          color: item.color
+        }));
+        
+        // 从工作事项中提取描述，合并为日志内容
+        const workItemDescriptions = workItemsWithData.map(item => 
+          `${item.category}: ${item.description}`
+        ).join('\n');
+        
+        // 确保返回对象包含所有必要字段
+        return {
+          id: log.id,
+          userId: log.user_id,
+          dateTime: log.date,
+          content: workItemDescriptions || log.content || log.notes, // 优先使用工作事项描述
+          deliverables: workItemsWithData.flatMap(item => item.deliverables), // 所有交付物（用于整体显示）
+          workItems: workItemsWithData, // 包含每个工作事项的详细数据
+          tags: workItemTags,
+          notes: log.notes || '', // 确保 notes 字段存在，默认为空字符串
+          createdAt: log.created_at,
+          updated_at: log.updated_at, // 添加 updated_at 字段，用于显示更新时间
+        };
+      });
     } catch (e) {
       console.error(e);
       return [];
@@ -103,277 +184,328 @@ export function WorkLogBoard() {
   };
 
   useEffect(() => {
-    const initData = async () => {
-      const currentUserId = currentUser?.id || 'current';
-      const currentUserName = currentUser?.user_metadata?.name || currentUser?.email?.split('@')[0] || '当前用户';
-
-      const backendLogs = await fetchLogs();
+    const init = async () => {
+      // 获取当前用户
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      const emailToId: { [key: string]: string } = {
-        'liushuo@itcast.cn': '1',
-        'wangjing@itcast.cn': '2',
-        'lifanghua@itcast.cn': '3',
-        'loujianghua@itcast.cn': '4',
-        'muhaotian@itcast.cn': '5',
-        'wuxue1@itcast.cn': '6'
-      };
-      
-      const userLogCounts: { [key: string]: number } = {};
-      backendLogs.forEach(log => {
-        const userId = emailToId[log.userEmail] || log.userId;
-        userLogCounts[userId] = (userLogCounts[userId] || 0) + 1;
-      });
+      if (userError || !user) {
+        console.error('获取用户信息失败:', userError);
+        setLoading(false);
+        return;
+      }
 
-      const baseUsers: User[] = teamMembersData.map(member => ({
-        id: member.id,
-        name: member.name,
-        role: member.role,
-        isCurrent: currentUser?.email === member.email,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.name}`,
-        updateCount: userLogCounts[member.id] || 0
-      }));
+      setCurrentUser(user);
+      console.log('当前用户 ID:', user.id);
 
-      if (!teamMembersData.find(m => currentUser?.email === m.email)) {
-        baseUsers.unshift({
-          id: currentUserId,
-          name: currentUserName,
+      const logList = await fetchAllLogs();
+      console.log('获取到的日志列表:', logList);
+
+      // 如果没有实际数据，添加模拟数据以展示设计效果
+      if (logList.length === 0) {
+        const mockLogs: Log[] = [
+          {
+            id: '1',
+            userId: user.id,
+            dateTime: new Date().toISOString(),
+            content: '完成了日志看板页面的五列响应式布局开发，重构了部分公共组件库以支持更灵活的参数配置。修复了在特定分辨率下头部导航栏不对齐的问题。',
+            tags: [
+              { name: '功能开发', color: '#3b82f6' },
+              { name: 'UI重构', color: '#10b981' }
+            ],
+            deliverables: [
+              { type: 'CODE', name: 'Dashboard.tsx 代码提交' },
+              { type: 'DOC', name: 'UI重构设计评审记录' }
+            ]
+          },
+          {
+            id: '2',
+            userId: user.id,
+            dateTime: new Date(Date.now() - 86400000).toISOString(),
+            content: '排查并修复了月报导出时数据缺失的严重Bug。下午参与了第三季度需求规划会议，确定了下阶段的重点迭代方向。',
+            tags: [
+              { name: 'Bug修复', color: '#ef4444' },
+              { name: '会议', color: '#f59e0b' }
+            ],
+            deliverables: [
+              { type: 'DOC', name: 'Bug修复文档' }
+            ]
+          },
+          {
+            id: '3',
+            userId: 'user-2',
+            dateTime: new Date(Date.now() - 172800000).toISOString(),
+            content: '输出了V2.0版本的全局设计规范文档，统一了系统中的色彩、阴影和字体层级。完成了项目配置页面的高保真设计稿。',
+            tags: [
+              { name: '视觉设计', color: '#8b5cf6' },
+              { name: '规范制定', color: '#06b6d4' }
+            ],
+            deliverables: [
+              { type: 'DESIGN', name: 'V2.0 视觉规范.fig' },
+              { type: 'DESIGN', name: '配置页面高保真' }
+            ]
+          }
+        ];
+
+        const mockUsers: User[] = [
+          {
+            id: user.id,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || '我',
+            role: '前端开发工程师',
+            isCurrent: true,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+            updateCount: 21
+          },
+          {
+            id: 'user-2',
+            name: '娄江华',
+            role: 'UI/UX 设计师',
+            isCurrent: false,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=designer`,
+            updateCount: 18
+          },
+          {
+            id: 'user-3',
+            name: '牟昊天',
+            role: '后端开发工程师',
+            isCurrent: false,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=backend`,
+            updateCount: 15
+          }
+        ];
+
+        setLogs(mockLogs);
+        setUsers(mockUsers);
+      } else {
+        setLogs(logList);
+        
+        // 从用户表中获取所有用户
+        const { data: allUsers, error: usersError } = await supabase
+          .from('users')
+          .select('id, name, role');
+        
+        // 构建用户列表
+        const userList: User[] = [];
+        
+        // 先添加当前用户
+        userList.push({
+          id: user.id,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || '我',
           role: '当前用户',
           isCurrent: true,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserId}`,
-          updateCount: backendLogs.filter((l: any) => l.userId === currentUserId).length || 0
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+          updateCount: logList.filter(l => l.userId === user.id).length,
         });
-      }
-
-      // 只使用后端获取的真实数据
-      const combinedLogs = [...backendLogs].sort((a, b) => {
-        return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
-      });
-
-      setUsers(baseUsers);
-      setLogs(combinedLogs);
-      setLoading(false);
-
-      setTimeout(() => {
-        if (currentUserColRef.current) {
-          currentUserColRef.current.scrollIntoView({
-            behavior: 'smooth',
-            inline: 'center',
-            block: 'nearest'
+        
+        if (usersError) {
+          console.error('获取用户列表失败:', usersError);
+          // 如果获取用户列表失败，从日志中提取用户 ID
+          const userIds = new Set<string>();
+          logList.forEach(log => userIds.add(log.userId));
+          
+          // 添加其他有日志的用户
+          userIds.forEach(uid => {
+            if (uid !== user.id) {
+              userList.push({
+                id: uid,
+                name: `用户 ${uid.slice(-4)}`, // 使用用户 ID 后4位作为用户名
+                role: '团队成员', // 使用固定角色
+                isCurrent: false,
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
+                updateCount: logList.filter(l => l.userId === uid).length,
+              });
+            }
+          });
+        } else {
+          // 从用户表获取成功
+          console.log('从用户表获取到的用户:', allUsers);
+          
+          // 添加其他用户
+          allUsers.forEach(u => {
+            if (u.id !== user.id) {
+              userList.push({
+                id: u.id,
+                name: u.name || `用户 ${u.id.slice(-4)}`,
+                role: u.role || '团队成员',
+                isCurrent: false,
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.id}`,
+                updateCount: logList.filter(l => l.userId === u.id).length,
+              });
+            }
           });
         }
-      }, 100);
+        
+        setUsers(userList);
+        console.log('构建的用户列表:', userList);
+      }
+
+      setLoading(false);
     };
 
-    initData();
-  }, [currentUser]);
-
-  const openReportModal = (user: User) => {
-    if (!user.isCurrent) {
-      toast.error('权限受限：您只能生成和查看自己的工作月报');
-      return;
-    }
-    const userLogs = logs.filter(l => l.userId === user.id);
-    if (userLogs.length === 0) {
-      toast.warning('当前没有任何工作日志，无法生成月报。请先去添加日志吧！');
-      return;
-    }
-    // 直接导航到月报页面
-    navigate('/monthly-report');
-  };
-
-  const handleGenerateReport = () => {
-    setModalError('');
-
-    if (!startDate || !endDate) {
-      setModalError('请填写完整的起止时间');
-      return;
-    }
-
-    if (new Date(startDate) > new Date(endDate)) {
-      setModalError('开始时间不能晚于结束时间');
-      return;
-    }
-
-    const userName = targetUser?.name || '未知用户';
-
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 1500)),
-      {
-        loading: `正在提取 ${userName} 的日志并生成月报...`,
-        success: () => {
-          setIsModalOpen(false);
-          return `成功生成 ${userName} 的工作月报（${startDate} 至 ${endDate}）！`;
-        },
-        error: '生成失败，请重试'
-      }
-    );
-  };
-
-  const handlePreview = (file: Deliverable, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!file.url) {
-      toast.error('该文件暂无预览链接');
-      return;
-    }
-    setPreviewFile(file);
-    setShowPreview(true);
-  };
-
-  const handleDownload = (file: Deliverable, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!file.url) {
-      toast.error('该文件暂无下载链接');
-      return;
-    }
-    // 创建一个隐藏的a标签来触发下载
-    const link = document.createElement('a');
-    link.href = file.url;
-    link.download = file.name;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`正在下载 ${file.name}`);
-  };
+    init();
+  }, []);
 
   const renderColumn = (user: User) => {
     const userLogs = logs.filter(l => l.userId === user.id);
     const isCurrent = user.isCurrent;
 
     return (
-      <div 
+      <div
         key={user.id}
         ref={isCurrent ? currentUserColRef : null}
-        className={`w-[340px] shrink-0 flex flex-col h-[calc(100vh-170px)] rounded-xl relative transition-all
-          ${isCurrent ? 'bg-white border-2 border-emerald-400 shadow-md' : 'bg-zinc-50/80 border border-zinc-200 opacity-90 hover:opacity-100'}
-        `}
+        className={`w-[320px] flex-shrink-0 rounded-2xl border ${isCurrent ? 'border-[#1ABC9C]/30 shadow-md' : 'border-[#dee1e6] shadow-sm'} bg-white flex flex-col h-fit max-h-[1200px]`}
       >
-        {/* 当前视窗标签 */}
-        {isCurrent && (
-          <div className="absolute top-0 right-0 bg-emerald-400 text-white text-[10px] px-2 py-1 rounded-bl-lg rounded-tr-xl font-medium z-10 shadow-sm">
-            我的工作台
-          </div>
-        )}
-
-        {/* 用户信息头部 */}
-        <div className="p-5 border-b border-zinc-100 shrink-0 bg-white rounded-t-xl">
-          <div className="flex justify-between items-start mb-4">
+        {/* Member Header */}
+        <div className="p-5 bg-[#fafafb]/30 rounded-t-2xl border-b border-[#dee1e6] relative">
+          {isCurrent && (
+            <div className="absolute top-0 right-4 bg-[#1ABC9C] text-[#19191F] text-[10px] font-bold px-2 py-0.5 rounded-b-lg uppercase tracking-wider">
+              当前视窗
+            </div>
+          )}
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className="w-10 h-10 rounded-full object-cover bg-zinc-100"
-                />
-                <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${isCurrent ? 'bg-emerald-500' : 'bg-zinc-400'}`}></div>
+                <div className="w-12 h-12 rounded-full overflow-hidden shadow-sm">
+                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#2ECC71] border-2 border-white rounded-full"></div>
               </div>
               <div>
-                <h3 className="font-bold text-zinc-900 text-base">{user.name}</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">{user.role}</p>
+                <h3 className="font-semibold text-base">{user.name}</h3>
+                <p className="text-[12px] text-[#565d6d]">{user.role}</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] text-zinc-500 font-medium mb-1">本月更新</div>
-              <div className="font-bold text-lg text-zinc-800 leading-none">
-                {user.updateCount} <span className="text-xs font-normal text-zinc-500">篇</span>
-              </div>
+              <p className="text-[10px] font-semibold text-[#565d6d] uppercase tracking-wider">本月更新</p>
+              <p className="text-sm font-bold">
+                {user.updateCount} <span className="text-[12px] font-normal text-[#565d6d]">篇</span>
+              </p>
             </div>
           </div>
-
-          <button 
-            onClick={() => openReportModal(user)}
-            className={`w-full py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors
-              ${isCurrent 
-                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm' 
-                : 'bg-zinc-100 border border-zinc-200 text-zinc-400 cursor-not-allowed hover:bg-zinc-100'}
-            `}
-            title={!isCurrent ? "无法生成他人的月报" : ""}
+          <button
+            onClick={() => {
+              if (!isCurrent) {
+                toast.info('仅查看模式，无法操作');
+                return;
+              }
+              setIsDateRangeModalOpen(true);
+            }}
+            className={`w-full py-2 rounded-md flex items-center justify-center gap-3 text-[12px] font-medium transition-colors ${isCurrent ? 'bg-[#1ABC9C] text-[#19191F] shadow-sm' : 'bg-white border border-[#dee1e6] text-[#171a1f] hover:bg-gray-50'}`}
           >
-            <FileDown className="w-4 h-4" /> 生成月报
+            <FileOutput className="w-3.5 h-3.5" />
+            <span>生成月报</span>
           </button>
         </div>
 
-        {/* 日志列表 (内部滚动) */}
-        <div className={`flex-1 overflow-y-auto p-4 space-y-4 rounded-b-xl scroll-smooth
-          ${isCurrent ? 'bg-zinc-50/50' : 'bg-transparent'}
-        `}>
-          {userLogs.map((log, index) => (
+        {/* Logs List */}
+        <div className="p-4 flex flex-col gap-4 overflow-y-auto bg-[#fafafb]/10 rounded-b-2xl">
+          {userLogs.map(log => (
             <div 
-              key={log.id || index} 
-              className={`p-4 rounded-xl border transition-shadow
-                ${isCurrent 
-                  ? 'bg-white border-zinc-200 shadow-sm hover:shadow-md' 
-                  : 'bg-white/60 border-zinc-200 opacity-80'}
-              `}
-              onClick={() => {
-                if (!isCurrent) {
-                  toast.error('您没有权限查看或编辑他人的日志详情');
-                }
-              }}
+              key={log.id} 
+              className="bg-white border border-[#dee1e6] rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => navigate(`/create?edit=${log.id}`)}
             >
+              {/* 时间显示 */}
+              <div className="flex items-center gap-2 bg-[#f3f4f6]/50 px-2 py-1 rounded-md w-fit mb-3">
+                <Clock className="w-3.5 h-3.5 text-[#565d6d]" />
+                <span className="text-[12px] font-medium text-[#565d6d]">
+                  {new Date(log.dateTime).toISOString().slice(0, 10)} · 
+                  {(() => {
+                    try {
+                      // 优先使用更新时间，没有则使用创建时间
+                      const timeToUse = log.updated_at || log.created_at;
+                      if (timeToUse) {
+                        return new Date(timeToUse).toISOString().slice(11, 16);
+                      }
+                      return '00:00'; // 默认为 00:00
+                    } catch (error) {
+                      console.error('时间处理错误:', error);
+                      return '00:00'; // 出错时默认为 00:00
+                    }
+                  })()}
+                </span>
+              </div>
               
-              <div className="text-xs text-zinc-500 flex items-center gap-1.5 mb-2.5">
-                <Clock className="w-3.5 h-3.5" />
-                {new Date(log.dateTime).toLocaleString('zh-CN', {
-                  month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-                })}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {log.tags && log.tags.map((tag, idx) => (
-                  <span key={idx} className="text-xs text-zinc-600 bg-zinc-100 px-2 py-1 rounded-md flex items-center gap-1">
-                    <Tag className="w-3 h-3 text-zinc-400" /> {tag}
-                  </span>
-                ))}
-              </div>
-
-              <p className={`text-sm leading-relaxed mb-4 ${isCurrent ? 'text-zinc-800' : 'text-zinc-600'}`}>
-                {log.content}
-              </p>
-
-              {log.deliverables && log.deliverables.length > 0 && (
-                <div className="pt-3 border-t border-dashed border-zinc-200">
-                  <div className="text-xs text-zinc-500 flex items-center gap-1.5 mb-2.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    交付物 ({log.deliverables.length})
-                  </div>
-                  <div className="space-y-2">
-                    {log.deliverables.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 group">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wide ${getDeliverableStyle(item.type)}`}>
-                          {item.type}
-                        </span>
-                        <span className="text-xs text-zinc-700 truncate font-medium flex-1">{item.name}</span>
-                        {item.url && (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={(e) => handlePreview(item, e)}
-                              className="p-1 hover:bg-zinc-100 rounded transition-colors"
-                              title="预览"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
-                            <button
-                              onClick={(e) => handleDownload(item, e)}
-                              className="p-1 hover:bg-zinc-100 rounded transition-colors"
-                              title="下载"
-                            >
-                              <Download className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
+              {/* 工作事项列表 */}
+              <div className="space-y-4 mb-4">
+                {log.workItems && log.workItems.length > 0 ? (
+                  // 显示工作事项
+                  log.workItems.map((workItem, tIdx) => (
+                    <div key={workItem.id} className="space-y-2">
+                      {/* 工作事项标题 */}
+                      <div className="bg-[#F3F4F6] px-3 py-1.5 rounded-md">
+                      <span className="text-[12px] font-medium text-[#565D6D]">事项{tIdx + 1}：{workItem.category}</span>
+                    </div>
+                      
+                      {/* 工作描述 */}
+                      <p className="text-sm leading-relaxed text-[#171a1f]">
+                        {workItem.description}
+                      </p>
+                      
+                      {/* 交付结果 - 只在有交付物时显示 */}
+                      {workItem.deliverables && workItem.deliverables.length > 0 && (
+                        <div className="pt-2 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <CircleCheck className="w-3.5 h-3.5 text-[#565d6d]" />
+                            <span className="text-[12px] font-medium text-[#565d6d]">交付物 ({workItem.deliverables.length})</span>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div className="space-y-1.5">
+                            {/* 对交付物进行排序：有链接的排在前面，没有链接的排在后面 */}
+                            {workItem.deliverables
+                              .sort((a, b) => {
+                                // 有链接的排在前面
+                                if (a.url && !b.url) return -1;
+                                if (!a.url && b.url) return 1;
+                                return 0;
+                              })
+                              .map((item, dIdx) => (
+                                <div key={dIdx} className="flex items-center gap-3 bg-[#fafafb] p-2 rounded-md">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.type === 'CODE' ? 'bg-[#DCFCE7] text-[#15803D]' : item.type === 'DOC' ? 'bg-[#DBEAFE] text-[#1D4ED8]' : 'bg-[#F3E8FF] text-[#7E22CE]'} tracking-wider`}>
+                                    {item.type}
+                                  </span>
+                                  <span className="text-[12px] font-medium truncate flex-1">{item.name}</span>
+                                  {item.url && (
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#1ABC9C] text-[12px] hover:underline">
+                                      查看
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* 灰色横线分隔符 - 除了最后一个工作事项 */}
+                      {tIdx < (log.workItems.length - 1) && (
+                        <div className="border-t border-gray-200 my-3"></div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // 如果没有工作事项，显示 log.content
+                  <p className="text-sm leading-relaxed text-[#171a1f]">
+                    {log.content}
+                  </p>
+                )}
+              </div>
+              
+              {/* 重点说明 */}
+              {log.notes && log.notes.trim() && (
+                <div className="mt-4 pt-4 border-t border-gray-200 bg-[#F0FDF4] p-3 rounded-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileOutput className="w-3.5 h-3.5 text-[#15803D]" />
+                    <span className="text-sm font-medium text-[#15803D]">重点说明</span>
                   </div>
+                  <p className="text-sm leading-relaxed text-[#171a1f]">
+                    {log.notes}
+                  </p>
                 </div>
               )}
             </div>
           ))}
 
           {userLogs.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
-              <FileText className="w-8 h-8 mb-2 opacity-20" />
-              <p className="text-sm">暂无日志记录</p>
+            <div className="text-center py-10 text-[#565d6d]">
+              <p className="text-sm">暂无日志</p>
             </div>
           )}
         </div>
@@ -384,177 +516,40 @@ export function WorkLogBoard() {
   if (loading) return <div className="flex h-screen items-center justify-center">加载中...</div>;
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#f8fafc] font-sans overflow-hidden">
-      {/* 顶部全局导航 */}
+    <div className="min-h-screen bg-white flex flex-col font-sans text-[#171a1f]">
       <TopNav
         userName={users.find(u => u.isCurrent)?.name}
         userAvatar={users.find(u => u.isCurrent)?.avatar}
       />
 
-      {/* 页面标题区 */}
-      <header className="px-8 py-6 shrink-0 bg-[#f8fafc] flex items-center justify-between z-10">
-        <div>
-          <div className="flex items-center gap-3 mb-1.5">
-            <LayoutDashboard className="w-6 h-6 text-emerald-500" />
-            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">工作日志看板</h1>
-            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold border border-emerald-100">
-              团队概览
-            </span>
+      <main className="flex-1 p-6 lg:px-16 lg:py-8 overflow-x-auto">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-bold tracking-tight">工作日志看板</h1>
+              <span className="px-2.5 py-0.5 bg-[#1ABC9C]/10 border border-[#1ABC9C]/20 rounded-full text-[12px] font-medium text-[#1ABC9C]">团队概览</span>
+            </div>
+            <p className="text-sm text-[#565d6d]">查看团队成员的每日工作进展与交付成果。</p>
           </div>
-          <p className="text-sm text-zinc-500">查看团队成员的每日工作进展与交付成果。您只能操作您自己的列。</p>
+          <button
+            onClick={() => navigate('/create')}
+            className="bg-[#1ABC9C] text-[#19191F] px-5 py-2.5 rounded-md flex items-center justify-center gap-2 font-medium shadow-sm hover:bg-[#16a085] transition-colors w-full md:w-auto"
+          >
+            工作日志
+          </button>
         </div>
-        <button 
-          onClick={() => navigate('/create')}
-          className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-emerald-600 shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
-        >
-          <Edit2 className="w-4 h-4" /> 写工作日志
-        </button>
-      </header>
 
-      {/* 看板主体区域 (横向滚动) */}
-      <main 
-        ref={scrollContainerRef}
-        className="flex-1 overflow-x-auto px-8 pb-8 flex gap-6 items-start scroll-smooth"
-      >
-        {users.map(renderColumn)}
+        {/* Kanban Board */}
+        <div className="flex gap-6 pb-8 min-w-max lg:min-w-0">
+          {users.map(renderColumn)}
+        </div>
       </main>
 
-      {/* 生成月报弹窗 */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-            onClick={() => setIsModalOpen(false)}
-          ></div>
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-white">
-              <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
-                <FileDown className="w-5 h-5 text-emerald-500" />
-                生成工作月报 - {targetUser?.name}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6 bg-white">
-              {modalError && (
-                <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm border border-red-100">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <p>{modalError}</p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-700">日志开始时间</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm bg-white transition-shadow"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-700">日志结束时间</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm bg-white transition-shadow"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-zinc-100 bg-zinc-50 flex justify-end gap-3">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-200 bg-zinc-100 rounded-lg transition-colors border border-transparent"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleGenerateReport}
-                className="px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
-              >
-                确认生成
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 文件预览弹窗 */}
-      {showPreview && previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowPreview(false)}
-          ></div>
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-zinc-200 flex items-center justify-between bg-white sticky top-0 z-10">
-              <div className="flex items-center gap-3">
-                <span className={`text-[10px] px-2 py-1 rounded font-bold tracking-wide ${getDeliverableStyle(previewFile.type)}`}>
-                  {previewFile.type}
-                </span>
-                <h2 className="text-base font-bold text-zinc-900">{previewFile.name}</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => handleDownload(previewFile, e)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  下载
-                </button>
-                <button
-                  onClick={() => setShowPreview(false)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-auto max-h-[calc(90vh-80px)] bg-zinc-50">
-              {previewFile.url && (
-                <div className="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden">
-                  {previewFile.type === 'DESIGN' || previewFile.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? (
-                    <img
-                      src={previewFile.url}
-                      alt={previewFile.name}
-                      className="w-full h-auto"
-                    />
-                  ) : previewFile.name.match(/\.pdf$/i) ? (
-                    <iframe
-                      src={previewFile.url}
-                      className="w-full h-[70vh]"
-                      title={previewFile.name}
-                    />
-                  ) : (
-                    <div className="p-8 text-center">
-                      <FileText className="w-16 h-16 text-zinc-300 mx-auto mb-4" />
-                      <p className="text-sm text-zinc-600 mb-4">该文件类型暂不支持在线预览</p>
-                      <button
-                        onClick={(e) => handleDownload(previewFile, e)}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                        下载文件
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <DateRangeModal
+        open={isDateRangeModalOpen}
+        onOpenChange={setIsDateRangeModalOpen}
+        onConfirm={handleGenerateMonthlyReport}
+      />
     </div>
   );
 }

@@ -77,7 +77,7 @@ export function CategorySelector({ value, onChange, categories, onAddCategory }:
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="搜索分类..."
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-zinc-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-zinc-200 rounded focus:outline-none focus:ring-1 focus:ring-[#1ABC9C]"
                 autoFocus
               />
             </div>
@@ -106,7 +106,7 @@ export function CategorySelector({ value, onChange, categories, onAddCategory }:
             {!showNewCategoryInput ? (
               <button
                 onClick={() => setShowNewCategoryInput(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#1ABC9C] hover:bg-[#1ABC9C]/10 rounded transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 <span>新建分类</span>
@@ -118,13 +118,13 @@ export function CategorySelector({ value, onChange, categories, onAddCategory }:
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="输入新分类名称..."
-                  className="flex-1 px-2 py-1.5 text-sm border border-zinc-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex-1 px-2 py-1.5 text-sm border border-zinc-200 rounded focus:outline-none focus:ring-1 focus:ring-[#1ABC9C]"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddNewCategory()}
                   autoFocus
                 />
                 <button
                   onClick={handleAddNewCategory}
-                  className="px-3 py-1.5 text-sm bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-[#1ABC9C] text-white rounded hover:bg-[#16a085] transition-colors"
                 >
                   添加
                 </button>

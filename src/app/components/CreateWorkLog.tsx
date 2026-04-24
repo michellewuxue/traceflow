@@ -1,17 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Calendar, Plus, Trash2, ChevronUp, ChevronDown, GripVertical, Send, X, Info, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { supabase } from '../App';
-import { projectId } from '/utils/supabase/info';
 import { DatePicker } from './DatePicker';
 import { RichTextEditor } from './RichTextEditor';
 import { CategorySelector } from './CategorySelector';
 import { FileUpload } from './FileUpload';
 import { TopNav } from './TopNav';
-import svgPaths from '../../imports/实现设计图前端开发Copy-1/svg-m1d1k1q1v7';
 
 interface WorkItem {
   id: string;
@@ -103,90 +101,91 @@ function WorkItemCard({ item, index, moveItem, onDelete, onToggleCollapse, onUpd
     }),
   });
 
-  // Only bind drag to the handle, drop to the whole card
   drop(ref);
   drag(dragHandleRef);
 
   return (
     <div
-      ref={ref}
-      data-handler-id={handlerId}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
-      className="bg-white border border-zinc-200 rounded-lg mb-3"
-    >
-      {/* Header */}
-      <div className="bg-emerald-50 border-b border-emerald-100 p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div ref={dragHandleRef} className="cursor-move">
-            <GripVertical className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="bg-emerald-100 px-2 py-1 rounded text-emerald-700 text-xs font-bold">
-            事项 {index + 1}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onDelete(item.id)}
-            className="p-1 hover:bg-emerald-100 rounded transition-colors"
-          >
-            <Trash2 className="w-4 h-4 text-zinc-600" />
-          </button>
-          <button
-            onClick={() => onToggleCollapse(item.id)}
-            className="p-1 hover:bg-emerald-100 rounded transition-colors"
-          >
-            {item.isCollapsed ? (
-              <ChevronDown className="w-4 h-4 text-zinc-600" />
-            ) : (
-              <ChevronUp className="w-4 h-4 text-zinc-600" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      {!item.isCollapsed && (
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-zinc-900 mb-2 block">
-              工作事项名称 <span className="text-red-500">*</span>
-            </label>
-            <CategorySelector
-              value={item.category}
-              onChange={(value) => onUpdateCategory(item.id, value)}
-              categories={categories}
-              onAddCategory={onAddCategory}
-            />
+          ref={ref}
+          data-handler-id={handlerId}
+          style={{ opacity: isDragging ? 0.5 : 1 }}
+          className="bg-white border border-[#dee1e6] rounded-xl mb-4 shadow-sm hover:shadow-md transition-shadow"
+        >
+          <div className="bg-[#1ABC9C]/10 border-b border-[#1ABC9C]/20 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div ref={dragHandleRef} className="cursor-move">
+                <GripVertical className="w-4 h-4 text-[#1ABC9C]" />
+              </div>
+              <div className="bg-[#1ABC9C] px-2 py-1 rounded text-white text-xs font-bold">
+                事项 {index + 1}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onDelete(item.id)}
+                className="p-1.5 hover:bg-[#1ABC9C]/20 rounded transition-colors"
+              >
+                <Trash2 className="w-4 h-4 text-[#565d6d]" />
+              </button>
+              <button
+                onClick={() => onToggleCollapse(item.id)}
+                className="p-1.5 hover:bg-[#1ABC9C]/20 rounded transition-colors"
+              >
+                {item.isCollapsed ? (
+                  <ChevronDown className="w-4 h-4 text-[#565d6d]" />
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-[#565d6d]" />
+                )}
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-zinc-900 mb-2 block">
-              工作描述 <span className="text-red-500">*</span>
-            </label>
-            <RichTextEditor
-              value={item.description}
-              onChange={(value) => onUpdateDescription(item.id, value)}
-              placeholder="详细描述您的工作内容..."
-            />
-          </div>
+          {!item.isCollapsed && (
+            <div className="p-5 space-y-5">
+              <div>
+                <label className="text-sm font-medium text-[#171a1f] mb-2 block">
+                  工作事项名称 <span className="text-red-500">*</span>
+                </label>
+                <CategorySelector
+                  value={item.category}
+                  onChange={(value) => onUpdateCategory(item.id, value)}
+                  categories={categories}
+                  onAddCategory={onAddCategory}
+                />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium text-zinc-900 mb-2 block">
-              交付结果
-            </label>
-            <FileUpload
-              files={item.files}
-              onFilesChange={(files) => onUpdateFiles(item.id, files)}
-            />
-          </div>
+              <div>
+                <label className="text-sm font-medium text-[#171a1f] mb-2 block">
+                  工作描述 <span className="text-red-500">*</span>
+                </label>
+                <RichTextEditor
+                  value={item.description}
+                  onChange={(value) => onUpdateDescription(item.id, value)}
+                  placeholder="详细描述您的工作内容..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-[#171a1f] mb-2 block">
+                  交付结果
+                </label>
+                <FileUpload
+                  key={item.id} // 添加 key 确保每个工作事项的 FileUpload 组件是独立的
+                  files={item.files}
+                  onFilesChange={(files) => onUpdateFiles(item.id, files)}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
   );
 }
 
 export function CreateWorkLog() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editLogId = searchParams.get('edit');
+  
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [workItems, setWorkItems] = useState<WorkItem[]>([
@@ -207,6 +206,77 @@ export function CreateWorkLog() {
   ]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [logId, setLogId] = useState<string | null>(null);
+
+  // 加载编辑的日志数据
+  useEffect(() => {
+    if (editLogId) {
+      loadLogData(editLogId);
+    }
+  }, [editLogId]);
+
+  const loadLogData = async (id: string) => {
+    setLoading(true);
+    try {
+      const { data: log, error: logError } = await supabase
+        .from('work_logs')
+        .select(`
+          *,
+          work_items (
+            id, 
+            category, 
+            description, 
+            sort_order,
+            deliverables(*)
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (logError) {
+        console.error('加载日志失败:', logError);
+        toast.error('加载日志失败');
+        navigate('/');
+        return;
+      }
+
+      setLogId(log.id);
+      setSelectedDate(new Date(log.date));
+      setNotes(log.notes || '');
+
+      // 处理工作事项
+      if (log.work_items && log.work_items.length > 0) {
+        // 按照 sort_order 排序
+        const sortedWorkItems = log.work_items.sort((a: any, b: any) => a.sort_order - b.sort_order);
+        
+        const items: WorkItem[] = sortedWorkItems.map((item: any) => {
+          // 处理交付物
+          const files: UploadedFile[] = item.deliverables?.map((deliverable: any) => ({
+            id: deliverable.id,
+            name: deliverable.name,
+            size: 0, // 从数据库中无法获取文件大小
+            type: deliverable.type,
+            url: deliverable.url
+          })) || [];
+
+          return {
+            id: item.id,
+            category: item.category,
+            description: item.description,
+            isCollapsed: false,
+            files: files
+          };
+        });
+
+        setWorkItems(items);
+      }
+    } catch (error) {
+      console.error('加载日志数据出错:', error);
+      toast.error('加载日志数据出错');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addWorkItem = () => {
     const newItem: WorkItem = {
@@ -216,7 +286,7 @@ export function CreateWorkLog() {
       isCollapsed: false,
       files: [],
     };
-    // 新建事项在前（倒序）
+    // 新创建的事项添加到数组开头，显示在最上面
     setWorkItems([newItem, ...workItems]);
   };
 
@@ -267,8 +337,8 @@ export function CreateWorkLog() {
     navigate('/');
   };
 
+  // 【最终修正：字段100%匹配表结构】
   const handlePublish = async () => {
-    // Validation
     if (workItems.length === 0) {
       toast.error('请至少添加一个工作事项');
       return;
@@ -279,7 +349,6 @@ export function CreateWorkLog() {
         toast.error('请为所有工作事项选择分类');
         return;
       }
-      // Check if description has actual content (not just HTML tags)
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = item.description;
       const textContent = tempDiv.textContent || tempDiv.innerText || '';
@@ -291,62 +360,128 @@ export function CreateWorkLog() {
 
     setLoading(true);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('获取会话错误:', sessionError);
-        throw new Error('获取会话失败，请重新登录');
-      }
-
-      const token = session?.access_token;
-
-      if (!token) {
-        console.error('未找到访问令牌');
-        throw new Error('未授权，请重新登录');
-      }
-
-      // Prepare data
-      const logData = {
-        date: selectedDate.toISOString().split('T')[0],
-        workItems: workItems.map(item => ({
-          category: item.category,
-          description: item.description,
-          files: item.files.map(f => ({
-            name: f.name,
-            type: f.type,
-            size: f.size,
-            url: f.url,
-          })),
-        })),
-        notes,
-      };
-
-      // 模拟API调用，避免401错误
-      // const res = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-e9f91fb9/logs`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify(logData)
-      // });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      // 模拟成功响应
-      const res = {
-        ok: true
-      } as Response;
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error('发布日志失败:', errorData);
-        throw new Error(errorData.error || '发布失败');
+      if (userError || !user) {
+        throw new Error('请先登录');
       }
 
-      toast.success('工作日志已成功发布！');
+      let currentLogId: string;
+
+      if (logId) {
+        // 编辑模式：更新现有日志
+        const logData = {
+          date: selectedDate.toISOString().split('T')[0],
+          notes: notes,
+          status: 'active',
+        };
+
+        const { error: logError } = await supabase
+          .from('work_logs')
+          .update(logData)
+          .eq('id', logId);
+
+        if (logError) {
+          console.error('更新日志失败：', logError);
+          throw new Error(logError.message);
+        }
+
+        currentLogId = logId;
+
+        // 删除现有工作事项和交付物
+        const { error: deleteWorkItemsError } = await supabase
+          .from('work_items')
+          .delete()
+          .eq('log_id', currentLogId);
+
+        if (deleteWorkItemsError) {
+          console.error('删除工作事项失败：', deleteWorkItemsError);
+          throw new Error(deleteWorkItemsError.message);
+        }
+      } else {
+        // 创建模式：创建新日志
+        const logData = {
+          user_id: user.id,
+          date: selectedDate.toISOString().split('T')[0], // NOT NULL，必须传
+          notes: notes,
+          status: 'active',
+        };
+
+        const { data: logResult, error: logError } = await supabase
+          .from('work_logs')
+          .insert([logData])
+          .select('id')
+          .single();
+
+        if (logError) {
+          console.error('创建日志失败：', logError);
+          throw new Error(logError.message);
+        }
+
+        currentLogId = logResult.id;
+      }
+
+      // 为每个工作事项创建 work_items 记录
+      for (let i = 0; i < workItems.length; i++) {
+        const item = workItems[i];
+        // 创建工作事项记录
+        const workItemData = {
+            log_id: currentLogId,
+            category: item.category,
+            description: item.description,
+            sort_order: i, // 使用索引作为排序值，保持显示顺序
+          };
+
+        const { data: workItemResult, error: workItemError } = await supabase
+          .from('work_items')
+          .insert([workItemData])
+          .select('id')
+          .single();
+
+        if (workItemError) {
+          console.error('创建工作事项失败：', workItemError);
+          throw new Error(workItemError.message);
+        }
+
+        const workItemId = workItemResult.id;
+
+        // 为每个文件创建一个 deliverables 记录
+        for (const file of item.files) {
+          // 确定文件类型
+          let fileType = 'OTHER';
+          const fileNameLower = file.name.toLowerCase();
+          if (fileNameLower.endsWith('.js') || fileNameLower.endsWith('.ts') || fileNameLower.endsWith('.jsx') || fileNameLower.endsWith('.tsx') || fileNameLower.endsWith('.html') || fileNameLower.endsWith('.css')) {
+            fileType = 'CODE';
+          } else if (fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx') || fileNameLower.endsWith('.pdf') || fileNameLower.endsWith('.txt')) {
+            fileType = 'DOC';
+          } else if (fileNameLower.endsWith('.fig') || fileNameLower.endsWith('.sketch') || fileNameLower.endsWith('.xd')) {
+            fileType = 'DESIGN';
+          }
+
+          const deliverableData = {
+            work_item_id: workItemId,
+            name: file.name,
+            url: file.url || '',
+            type: fileType,
+          };
+
+          const { error: deliverableError } = await supabase
+            .from('deliverables')
+            .insert([deliverableData]);
+
+          if (deliverableError) {
+            console.error('创建交付物失败：', deliverableError);
+            throw new Error(deliverableError.message);
+          }
+        }
+      }
+
+      toast.success(logId ? '✅ 工作日志已成功更新！' : '✅ 工作日志已成功保存到 Supabase！');
       navigate('/');
+      
     } catch (e: any) {
-      console.error('发布日志错误:', e);
-      toast.error(e.message || '发布日志时发生错误');
+      console.error('发布错误：', e);
+      toast.error(e.message || '发布失败');
     } finally {
       setLoading(false);
     }
@@ -361,46 +496,38 @@ export function CreateWorkLog() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="flex flex-col h-screen w-full bg-[#f8fafc] font-sans overflow-hidden">
-        {/* 顶部全局导航 */}
+      <div className="min-h-screen bg-white flex flex-col font-sans text-[#171a1f]">
         <TopNav />
 
-        {/* 页面标题区 */}
-        <header className="px-8 py-6 shrink-0 bg-[#f8fafc] border-b border-zinc-200">
-          <div className="max-w-[1200px] mx-auto flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-1.5">
-                <Edit2 className="w-6 h-6 text-emerald-500" />
-                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">撰写工作日志</h1>
+        <main className="flex-1 p-6 lg:px-16 lg:py-8 overflow-y-auto">
+          <div className="max-w-[1200px] mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-2xl font-bold tracking-tight">撰写工作日志</h1>
+                </div>
+                <p className="text-sm text-[#565d6d]">结构化记录每日工作，方便团队同步与月底总结。</p>
               </div>
-              <p className="text-sm text-zinc-500">结构化记录每日工作，方便团队同步与月底总结。</p>
+              <button
+                onClick={handleCancel}
+                className="border border-[#dee1e6] text-[#171a1f] px-4 py-2 rounded-md flex items-center justify-center gap-2 font-medium shadow-sm hover:bg-gray-50 transition-colors w-full md:w-auto"
+              >
+                <X className="w-4 h-4" />
+                <span>返回</span>
+              </button>
             </div>
-            <button
-              onClick={handleCancel}
-              className="flex items-center gap-2 px-4 py-2 border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors text-sm font-medium"
-            >
-              <X className="w-4 h-4" />
-              返回
-            </button>
-          </div>
-        </header>
 
-        {/* 主内容区域 */}
-        <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
-          <div className="max-w-[1200px] mx-auto px-8 py-6">
-            <div className="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden">
-
-              {/* Work Items Header */}
-              <div className="border-b border-zinc-200 p-4 flex items-center justify-between">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#dee1e6] overflow-hidden">
+              <div className="border-b border-[#dee1e6] p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-bold text-zinc-900">工作事项列表</h2>
+                  <h2 className="text-lg font-semibold text-[#171a1f]">工作事项列表</h2>
                   <div className="relative">
                     <button
                       onClick={() => setShowDatePicker(!showDatePicker)}
-                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 rounded-lg hover:border-zinc-300 transition-colors bg-white text-sm"
+                      className="flex items-center gap-2 px-3 py-1.5 border border-[#dee1e6] rounded-md hover:border-[#1ABC9C] transition-colors bg-white text-sm"
                     >
-                      <span className="font-medium text-zinc-900">{formatDate(selectedDate)}</span>
-                      <Calendar className="w-4 h-4 text-zinc-600" />
+                      <span className="font-medium text-[#171a1f]">{formatDate(selectedDate)}</span>
+                      <Calendar className="w-4 h-4 text-[#565d6d]" />
                     </button>
                     {showDatePicker && (
                       <DatePicker
@@ -413,17 +540,16 @@ export function CreateWorkLog() {
                 </div>
                 <button
                   onClick={addWorkItem}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#1ABC9C] text-[#19191F] rounded-md hover:bg-[#16a085] transition-colors text-sm font-medium shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
                   添加事项
                 </button>
               </div>
 
-              {/* Work Items List */}
-              <div className="p-4">
+              <div className="p-5">
                 {workItems.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-400">
+                  <div className="text-center py-12 text-[#565d6d]">
                     <p className="text-sm">暂无工作事项，点击"添加事项"开始记录</p>
                   </div>
                 ) : (
@@ -447,27 +573,25 @@ export function CreateWorkLog() {
                 )}
               </div>
 
-              {/* Important Notes */}
-              <div className="border-t border-zinc-200 p-4">
+              <div className="border-t border-[#dee1e6] p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Info className="w-4 h-4 text-zinc-600" />
-                  <h3 className="text-sm font-medium text-zinc-900">重点说明</h3>
+                  <Info className="w-4 h-4 text-[#565d6d]" />
+                  <h3 className="text-sm font-medium text-[#171a1f]">重点说明</h3>
                 </div>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="若本次工作有需同步的重点事项、风险或后续安排，请在此填写说明。"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-600 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                  className="w-full px-3 py-2 border border-[#dee1e6] rounded-md text-sm text-[#171a1f] placeholder:text-[#565d6d] focus:outline-none focus:ring-1 focus:ring-[#1ABC9C] resize-none"
                   rows={2}
                 />
               </div>
 
-              {/* Footer */}
-              <div className="bg-zinc-50 border-t border-zinc-200 p-6 flex items-center justify-end">
+              <div className="bg-[#fafafb]/30 border-t border-[#dee1e6] p-6 flex items-center justify-end">
                 <button
                   onClick={handlePublish}
                   disabled={loading}
-                  className="flex items-center gap-2 px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium disabled:opacity-50 shadow-sm"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-[#1ABC9C] text-[#19191F] rounded-md hover:bg-[#16a085] transition-colors text-sm font-medium disabled:opacity-50 shadow-sm"
                 >
                   <Send className="w-4 h-4" />
                   {loading ? '发布中...' : '发布日志'}
@@ -475,7 +599,7 @@ export function CreateWorkLog() {
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </DndProvider>
   );
