@@ -4,6 +4,7 @@ import {
   CircleCheck,
   FileOutput,
   Tag,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate, useOutletContext } from 'react-router';
@@ -84,6 +85,29 @@ const getFileSizeFromURL = async (url: string) => {
     else return (size / 1024 / 1024).toFixed(1) + ' MB';
   } catch (e) {
     return '未知大小';
+  }
+};
+
+const handleDownloadFile = async (url: string, fileName: string) => {
+  try {
+    toast.loading('正在下载文件...', { id: 'download' });
+    
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName || '下载文件';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+    
+    toast.success('下载成功', { id: 'download' });
+  } catch (error) {
+    console.error('下载失败:', error);
+    toast.error('下载失败，请重试', { id: 'download' });
   }
 };
 
@@ -278,10 +302,19 @@ const getFileSizeFromURL = async (url: string) => {
       } else {
         setLogs(logList);
         
-        // 从用户表中获取所有用户
+        // 从用户表中获取所有用户信息
         const { data: allUsers, error: usersError } = await supabase
           .from('users')
           .select('id, name, role');
+        console.log('从用户表获取到的用户:', allUsers, '错误:', usersError);
+        
+        // 从日志中提取所有用户 ID
+        const userIds = new Set<string>();
+        logList.forEach(log => userIds.add(log.userId));
+        console.log('从日志中提取到的用户 ID:', Array.from(userIds));
+        
+        // 确保当前用户在集合中
+        userIds.add(user.id);
         
         // 构建用户列表
         const userList: User[] = [];
@@ -296,43 +329,31 @@ const getFileSizeFromURL = async (url: string) => {
           updateCount: logList.filter(l => l.userId === user.id).length,
         });
         
-        if (usersError) {
-          console.error('获取用户列表失败:', usersError);
-          // 如果获取用户列表失败，从日志中提取用户 ID
-          const userIds = new Set<string>();
-          logList.forEach(log => userIds.add(log.userId));
-          
-          // 添加其他有日志的用户
-          userIds.forEach(uid => {
-            if (uid !== user.id) {
-              userList.push({
-                id: uid,
-                name: `用户 ${uid.slice(-4)}`, // 使用用户 ID 后4位作为用户名
-                role: '团队成员', // 使用固定角色
-                isCurrent: false,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
-                updateCount: logList.filter(l => l.userId === uid).length,
-              });
+        // 添加其他用户
+        userIds.forEach(uid => {
+          if (uid !== user.id) {
+            // 尝试从用户表中获取用户信息
+            let userName = `用户 ${uid.slice(-4)}`;
+            let userRole = '团队成员';
+            
+            if (allUsers) {
+              const userInfo = allUsers.find(u => u.id === uid);
+              if (userInfo) {
+                userName = userInfo.name || userName;
+                userRole = userInfo.role || userRole;
+              }
             }
-          });
-        } else {
-          // 从用户表获取成功
-          console.log('从用户表获取到的用户:', allUsers);
-          
-          // 添加其他用户
-          allUsers.forEach(u => {
-            if (u.id !== user.id) {
-              userList.push({
-                id: u.id,
-                name: u.name || `用户 ${u.id.slice(-4)}`,
-                role: u.role || '团队成员',
-                isCurrent: false,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.id}`,
-                updateCount: logList.filter(l => l.userId === u.id).length,
-              });
-            }
-          });
-        }
+            
+            userList.push({
+              id: uid,
+              name: userName,
+              role: userRole,
+              isCurrent: false,
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid}`,
+              updateCount: logList.filter(l => l.userId === uid).length,
+            });
+          }
+        });
         
         setUsers(userList);
         console.log('构建的用户列表:', userList);
@@ -464,9 +485,16 @@ const getFileSizeFromURL = async (url: string) => {
                                   </span>
                                   <span className="text-[12px] font-medium truncate flex-1">{item.name}</span>
                                   {item.url && (
-                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[#1ABC9C] text-[12px] hover:underline">
-                                      查看
-                                    </a>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownloadFile(item.url!, item.name);
+                                      }}
+                                      className="text-[#1ABC9C] hover:text-[#16a085] transition-colors"
+                                      title="下载"
+                                    >
+                                      <Download className="w-3 h-3" />
+                                    </button>
                                   )}
                                 </div>
                               ))}

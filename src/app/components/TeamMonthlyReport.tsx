@@ -309,7 +309,7 @@ export function TeamMonthlyReport() {
           {teamMembers.map((member, idx) => (
             <div 
               key={idx} 
-              className={`w-[244px] flex-shrink-0 rounded-2xl border shadow-sm flex flex-col h-[720px]
+              className={`w-[254px] flex-shrink-0 rounded-2xl border shadow-sm flex flex-col h-[720px]
                 ${member.isCurrent ? 'bg-white border-2 border-[#1ABC9C] shadow-md' : 'bg-[#f3f4f6]/20 border-[#dee1e6]/40'}
               `}
             >
